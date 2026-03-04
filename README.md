@@ -1,31 +1,80 @@
-# Overview
-This project aims to automate the classification and organization of camera trap images featuring animals and birds. The system utilizes computer vision and machine learning techniques to identify species captured in the images and then moves the files to folders named after the detected species. This workflow streamlines data management for wildlife researchers, conservationists, and hobbyists who use camera traps for animal monitoring.
+# Wildlife Monitoring Pipeline
 
-# Features
-- **Animal Detection and Classification:** Leverages pre-trained deep learning models to classify animals and birds in camera trap images.
-- **Automated Folder Organization:** Automatically creates and organizes images into folders named after the detected species.
-- **High Accuracy**: Employs state-of-the-art models for high-accuracy classification, including support for common and rare species.
-- **User-Friendly:** Minimal configuration required—just upload the images and run the program!
-- **Customizable:** Add new species or retrain the model with custom datasets for specific environments.
+## Overview
+This project automates the classification and organization of camera trap images featuring animals and birds. The pipeline predicts a species label for each image and places files into output folders named after the detected species.
 
-# End Goal
-To create a robust, scalable system capable of identifying various species with minimal user intervention. The organized folders will simplify analysis, allow easy sharing of specific species, and contribute to the understanding of biodiversity and animal behavior.
+## Features
+- **Animal Detection and Classification:** Uses a pre-trained deep learning model (MobileNetV3 on ImageNet) as a baseline.
+- **Automated Folder Organization:** Creates folders by predicted species and moves/copies images there.
+- **Confidence Thresholding:** Low-confidence predictions are automatically routed to `Unknown`.
+- **Minimal Configuration:** Point at an input and output directory and run.
+- **Extensible Design:** Swap in custom classifiers or retrained models.
 
-# Technologies
-- **Python:** The core language for the project.
-- **TensorFlow / PyTorch:** For implementing pre-trained or custom deep learning models.
-- **OpenCV:** For image pre-processing and manipulation.
-- **scikit-learn:** For additional classification tasks and evaluation.
-- **Flask / Streamlit:** (Optional) For building a user interface.
+## End Goal
+Provide a robust, scalable workflow for wildlife researchers, conservationists, and hobbyists so they can spend less time sorting files and more time analyzing biodiversity.
 
-# How It Works
-- **Image Input:** Upload camera trap images to the system.
-- **Preprocessing:** Images are preprocessed for optimal model performance (resizing, denoising, etc.).
-- **Animal Classification:** The model predicts the species in each image.
-- **Folder Organization:** Images are moved to folders named after the detected species (e.g., "Deer", "Eagle", "Fox").
-- **Review Results:** Optionally review and validate the classification results.
+## Technologies
+- **Python 3.8+**
+- **PyTorch / torchvision** (classification model)
+- **Pillow / NumPy** (image handling)
+- **OpenCV and scikit-learn** listed as project dependencies for broader CV/ML extensions
 
-# Getting Started
-- **Prerequisites**
-Python 3.8+
-Required Python libraries (see requirements.txt)
+## Project Structure
+
+```text
+src/wildlife_monitoring/
+  classifier.py   # model-backed and constant classifiers
+  config.py       # pipeline configuration
+  organizer.py    # image discovery + move/copy behavior
+  pipeline.py     # orchestration
+  preprocess.py   # image loading utilities
+  cli.py          # command line entry point
+tests/
+  test_pipeline.py
+  test_organizer.py
+```
+
+## Getting Started
+
+### Prerequisites
+- Python 3.8+
+- pip
+
+### Install
+
+```bash
+python -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+pip install -e .
+```
+
+### Run
+
+```bash
+wildlife-pipeline --input-dir ./camera_trap_images --output-dir ./organized_images
+```
+
+### Useful Options
+
+```bash
+# copy files instead of moving
+wildlife-pipeline --input-dir ./in --output-dir ./out --copy
+
+# treat low-confidence predictions as Unknown at a stricter threshold
+wildlife-pipeline --input-dir ./in --output-dir ./out --confidence-threshold 0.45
+
+# dry run classifier that labels everything as Deer
+wildlife-pipeline --input-dir ./in --output-dir ./out --dry-run-class Deer
+```
+
+## How It Works
+1. Discover images in the input directory.
+2. Load and preprocess each image to RGB.
+3. Classify with the model-backed classifier.
+4. Map predictions to wildlife-focused labels.
+5. Move/copy each image into a species-named folder.
+
+## Notes
+- The first model-backed run may download model weights.
+- The ImageNet baseline is a starting point; for field deployment, train/fine-tune on camera trap datasets for better species-level accuracy.
