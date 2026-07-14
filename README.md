@@ -80,6 +80,35 @@ cd src
 ../venv/bin/python pipeline.py             # move files + log to Airtable
 ```
 
+## Data
+
+No training happens in this repo — both models are used pretrained and
+off-the-shelf. Two different datasets are relevant, for different reasons:
+
+**What the models were trained on** (explains their behavior/limits):
+- **MegaDetector** ([src/detector.py](src/detector.py)) is trained by its
+  maintainers on a large aggregated corpus of camera trap images contributed
+  by partner organizations across many ecosystems worldwide, labeled only for
+  `animal` / `person` / `vehicle` presence — not species. That's why it's
+  reliable for the empty-vs-not-empty call but has no concept of species.
+- **The ResNet50 species hint** ([src/classifier.py](src/classifier.py)) is
+  trained on **ImageNet-1k** (~1.28M images, 1,000 general object
+  categories — everyday objects, dog breeds, 59 bird species, a handful of
+  other animals). It has no African savanna species classes, which is why
+  `Predicted Label` is only a loose hint (see Known limitations).
+
+**The data this pipeline actually runs against:**
+- [data/download/](data/download) — a staging folder for new, unsorted
+  images; the pipeline reads from here (configurable via `SOURCE_DIR`).
+- [data/S1/](data/S1) — a local, ungitignored-from-tracking raw archive of
+  406,526 images across 167 camera station folders (~243GB), organized by
+  station code (e.g. `B04`, `C03`) in a way consistent with a
+  Snapshot-Serengeti-style camera trap survey. It has no accompanying label
+  file in this repo — it's unlabeled raw footage, not a training set. Images
+  get pulled from here into `data/download` to be processed.
+- Neither of these is committed to git — `data/` is excluded via
+  `.gitignore` because of size.
+
 ## Known limitations
 
 - **Species labels are a hint, not an ID.** The classifier is a generic
