@@ -1,0 +1,21 @@
+# Data & models (large / local only)
+data/
+models/
+outputs/
+logs/*.log
+
+# Environment
+venv/
+.venv/
+__pycache__/
+*.pyc
+.env
+
+# OS
+.DS_Store
+
+# Local tooling
+.claude/
+
+# Notebooks
+.ipynb_checkpoints/
