@@ -1,9 +1,11 @@
-"""Image classification: sorts camera trap images into bird / animal / empty.
+"""Stage 2: given a crop that detector.py has already confirmed is an animal,
+guess whether it's a bird -- this is only a species *hint*, not detection.
 
-Uses a torchvision ResNet50 trained on ImageNet-1k. ImageNet has no
-"empty/no-animal" class of its own, so a prediction is only trusted above
-CONFIDENCE_THRESHOLD; anything below that (or anything that isn't a known
-bird/mammal class) is treated as empty/unidentified and rejected.
+Uses a torchvision ResNet50 trained on ImageNet-1k, which has no bird-vs-
+mammal camera-trap-specific classes, so a prediction is only trusted (as
+"bird") above CONFIDENCE_THRESHOLD and when it lands in a known bird class;
+otherwise the caller should default to "animal", since detector.py has
+already confirmed something is there.
 
 The BIRD_CLASSES set is the exact list of the 59 bird categories in
 ImageNet-1k. ANIMAL_KEYWORDS is a heuristic substring match over the
@@ -11,10 +13,9 @@ remaining class names and is intentionally easy to extend -- swap in a
 fine-tuned Snapshot-Serengeti-style model here later for real species labels.
 """
 from dataclasses import dataclass
-from pathlib import Path
 
 import torch
-from PIL import Image, UnidentifiedImageError
+from PIL import Image
 from torchvision.models import ResNet50_Weights, resnet50
 
 BIRD_CLASSES = {
@@ -62,12 +63,7 @@ class WildlifeClassifier:
         self.categories = weights.meta["categories"]
         self.transform = weights.transforms()
 
-    def classify(self, image_path: Path) -> ClassificationResult:
-        try:
-            image = Image.open(image_path).convert("RGB")
-        except UnidentifiedImageError as exc:
-            raise ValueError(f"Not a readable image: {image_path}") from exc
-
+    def classify(self, image: Image.Image) -> ClassificationResult:
         with torch.no_grad():
             batch = self.transform(image).unsqueeze(0).to(self.device)
             probs = torch.nn.functional.softmax(self.model(batch), dim=1)[0]

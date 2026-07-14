@@ -19,6 +19,7 @@ class Config:
     animals_dir: Path
     rejected_dir: Path
     confidence_threshold: float
+    detection_confidence_threshold: float
 
     @classmethod
     def load(cls) -> "Config":
@@ -34,4 +35,5 @@ class Config:
             animals_dir=resolve("ANIMALS_DIR", "data/classified/animals"),
             rejected_dir=resolve("REJECTED_DIR", "data/rejected"),
             confidence_threshold=float(os.getenv("CONFIDENCE_THRESHOLD", "0.3")),
+            detection_confidence_threshold=float(os.getenv("DETECTION_CONFIDENCE_THRESHOLD", "0.2")),
         )

@@ -2,13 +2,16 @@ import argparse
 import logging
 import shutil
 import sys
+from dataclasses import dataclass
 from pathlib import Path
 
+from PIL import Image
 from tqdm import tqdm
 
 from airtable_logger import AirtableLogger
-from classifier import WildlifeClassifier
+from classifier import ClassificationResult, WildlifeClassifier
 from config import Config
+from detector import AnimalDetector
 from metadata import extract_metadata
 
 IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png"}
@@ -39,6 +42,22 @@ def destination_for(category: str, config: Config) -> Path:
     }[category]
 
 
+def evaluate(image_path: Path, detector: AnimalDetector, classifier: WildlifeClassifier) -> ClassificationResult:
+    """Stage 1 (detector) decides empty vs. animal/person/vehicle. Only real
+    animal detections go to stage 2 (classifier) for a bird/other species hint.
+    """
+    detection = detector.best(image_path)
+    if detection is None:
+        return ClassificationResult("empty", "no detection", 0.0)
+    if detection.category != "animal":
+        return ClassificationResult("empty", detection.category, detection.confidence)
+
+    crop = Image.open(image_path).convert("RGB").crop(detection.bbox)
+    species = classifier.classify(crop)
+    category = "bird" if species.category == "bird" else "animal"
+    return ClassificationResult(category, species.label, detection.confidence)
+
+
 def run(config: Config, dry_run: bool = False) -> None:
     for directory in (config.birds_dir, config.animals_dir, config.rejected_dir):
         directory.mkdir(parents=True, exist_ok=True)
@@ -48,6 +67,7 @@ def run(config: Config, dry_run: bool = False) -> None:
         log.info("No images found in %s", config.source_dir)
         return
 
+    detector = AnimalDetector(confidence_threshold=config.detection_confidence_threshold)
     classifier = WildlifeClassifier(confidence_threshold=config.confidence_threshold)
     airtable = None if dry_run else AirtableLogger(
         config.airtable_api_key, config.airtable_base_id, config.airtable_table_name
@@ -57,8 +77,8 @@ def run(config: Config, dry_run: bool = False) -> None:
 
     for image_path in tqdm(images, desc="Classifying"):
         try:
-            result = classifier.classify(image_path)
-        except ValueError as exc:
+            result = evaluate(image_path, detector, classifier)
+        except (OSError, ValueError) as exc:
             log.warning("Skipping unreadable image %s: %s", image_path, exc)
             counts["error"] += 1
             continue
